@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ResumeBuilder", "ResumeBuilder\ResumeBuilder.csproj", "{BA474B48-50AA-41A8-98F7-4FECFD5DA03E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CvParser", "CvParser\CvParser.csproj", "{C43354E5-9BCB-451F-BAE4-56CDE31A70B6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CvParser.Docx", "CvParser.Docx\CvParser.Docx.csproj", "{A0E62055-B228-496C-9963-1A12CFDF88B4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BA474B48-50AA-41A8-98F7-4FECFD5DA03E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BA474B48-50AA-41A8-98F7-4FECFD5DA03E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BA474B48-50AA-41A8-98F7-4FECFD5DA03E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BA474B48-50AA-41A8-98F7-4FECFD5DA03E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C43354E5-9BCB-451F-BAE4-56CDE31A70B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C43354E5-9BCB-451F-BAE4-56CDE31A70B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C43354E5-9BCB-451F-BAE4-56CDE31A70B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C43354E5-9BCB-451F-BAE4-56CDE31A70B6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A0E62055-B228-496C-9963-1A12CFDF88B4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A0E62055-B228-496C-9963-1A12CFDF88B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A0E62055-B228-496C-9963-1A12CFDF88B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A0E62055-B228-496C-9963-1A12CFDF88B4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
