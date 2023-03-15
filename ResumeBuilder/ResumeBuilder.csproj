@@ -9,6 +9,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\CvParser.Docx\CvParser.Docx.csproj" />
+      <ProjectReference Include="..\CvParser\CvParser.Docx\CvParser.Docx.csproj" />
     </ItemGroup>
 
     <ItemGroup>
