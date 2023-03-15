@@ -1,15 +1,12 @@
-﻿using System.Collections.Immutable;
-using System.Collections.ObjectModel;
-using System.Globalization;
-using System.IO.Compression;
-using System.Reflection.Metadata;
+﻿using System.IO.Compression;
 using System.Xml;
-using CvParser.Models.CV;
-using CvParser.Models.CV.Parts;
-using CvParser.Models.CV.Parts.Certificate;
-using CvParser.Models.CV.Parts.Language;
-using CvParser.Models.CV.Parts.Project;
-using CvParser.Models.Exceptions;
+using CvParser.Domain.CV;
+using CvParser.Domain.CV.Parts;
+using CvParser.Domain.CV.Parts.Certificate;
+using CvParser.Domain.CV.Parts.Language;
+using CvParser.Domain.CV.Parts.Project;
+using CvParser.Domain.Exceptions;
+using CvParser.Domain.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace CvParser.Docx;
@@ -18,48 +15,54 @@ public class DocxCvParser : ICvParser
 {
     private readonly ILogger? _logger;
 
-    private static readonly (string sectionName, Action<SoftSkills, string> setter)[] SoftSkillsSetters = 
+    private static readonly (string sectionName, Action<SoftSkills, string> setter)[] SoftSkillsSetters =
         new (string sectionName, Action<SoftSkills, string>)[]
-    {
-        ("education", (skills, value) =>
         {
-            skills.Educations ??= new List<string>();
-            skills.Educations.Add(value);
-        }),
-        ("language proficiency", (skills, value) =>
-        {
-            skills.Languages ??= new List<LanguageInfo>();
-
-            var languageInfoParts = value.Split('—', '-');
-            
-            skills.Languages.Add(new LanguageInfo
+            ("education", (skills, value) =>
             {
-                Name = languageInfoParts[0],
-                Level = Utils.Parse(languageInfoParts[1]),
-            });
-        }),
-        ("certifications", (skills, value) =>
-        {
-            skills.Certifications ??= new List<CerfiticateInfo>();
-
-            skills.Certifications.Add(new CerfiticateInfo
+                skills.Educations ??= new List<string>();
+                skills.Educations.Add(value);
+            }),
+            ("language proficiency", (skills, value) =>
             {
-                Name = value
-            });
-        }),
-        ("domains", (skills, value) =>
-        {
-            skills.Domains ??= new List<string>();
+                var languageInfoParts = value.Split('—', '-');
 
-            skills.Domains.Add(value);
-        }),
-    };
-    
+                if (languageInfoParts.Length != 2)
+                {
+                    return;
+                }
+                
+                skills.Languages ??= new List<LanguageInfo>();
+
+                skills.Languages.Add(new LanguageInfo
+                {
+                    Name = languageInfoParts[0],
+                    Level = Utils.Parse(languageInfoParts[1]),
+                });
+
+            }),
+            ("certifications", (skills, value) =>
+            {
+                skills.Certifications ??= new List<CertificateInfo>();
+
+                skills.Certifications.Add(new CertificateInfo
+                {
+                    Name = value
+                });
+            }),
+            ("domains", (skills, value) =>
+            {
+                skills.Domains ??= new List<string>();
+
+                skills.Domains.Add(value);
+            }),
+        };
+
     public DocxCvParser(ILogger? logger = null)
     {
         _logger = logger;
     }
-    
+
     public async Task<Cv> ParseAsync(string filePath)
     {
         try
@@ -74,7 +77,7 @@ public class DocxCvParser : ICvParser
         }
         catch (Exception e)
         {
-            _logger?.LogError("Cv parsing failed with the message: {message}, {stackTrace}", 
+            _logger?.LogError("Cv parsing failed with the message: {message}, {stackTrace}",
                 e.Message, e.StackTrace);
 
             throw new CvParseException($"Cv parsing failed with the message: {e.Message}", e);
@@ -84,7 +87,7 @@ public class DocxCvParser : ICvParser
     private string UnzipDocxFile(string docxFilePath)
     {
         var fileName = Path.GetFileName(docxFilePath);
-        
+
         var fileLocationDirectory = Path.GetDirectoryName(docxFilePath)!;
 
         var createdDirectory = CreateDirectory();
@@ -102,7 +105,7 @@ public class DocxCvParser : ICvParser
 
             return fileName[..fileName.LastIndexOf('.')];
         }
-        
+
         DirectoryInfo CreateDirectory()
         {
             var cvRootDirectoryName = Path.Combine(fileLocationDirectory, RemoveExtension(fileName));
@@ -111,8 +114,8 @@ public class DocxCvParser : ICvParser
             {
                 Directory.CreateDirectory(cvRootDirectoryName);
             }
-            
-            return Directory.CreateDirectory(Path.Combine(cvRootDirectoryName, 
+
+            return Directory.CreateDirectory(Path.Combine(cvRootDirectoryName,
                 DateTime.Now.ToString("yy-MM-dd h_mm_ss")));
         }
     }
@@ -120,7 +123,7 @@ public class DocxCvParser : ICvParser
     private Cv ParseCvCore(XmlDocument xmlDoc)
     {
         _logger?.LogInformation("Start parsing cv xml");
-        
+
         var namespaceManager = new XmlNamespaceManager(xmlDoc.NameTable);
         namespaceManager.AddNamespace("w", "http://schemas.openxmlformats.org/wordprocessingml/2006/main");
 
@@ -154,32 +157,34 @@ public class DocxCvParser : ICvParser
         var projectsTableNode = projectsHeader.NextSibling!;
 
         _logger?.LogInformation("Start parsing projects");
+
+        var projectNodes = projectsTableNode.SelectNodes("w:tr", namespaceManager)!
+            .Where(node => !node.IsEmpty())!
+            .ToArray();
         
-        var projectNodes = projectsTableNode.SelectNodes("w:tr", namespaceManager)!;
-        
-        _logger?.LogInformation("{count} project were found", projectNodes.Count);
+        _logger?.LogInformation("{count} projects were found", projectNodes.Length);
 
         var currentProjectIndex = 0;
-        foreach (XmlNode projectNode in projectNodes)
+        foreach (var projectNode in projectNodes)
         {
             _logger?.LogInformation("Parsing {index} project:", currentProjectIndex++);
-            
+
             var project = ParseProject(projectNode, namespaceManager);
 
             _logger?.LogInformation("Parsed project: @{project}", project);
-            
+
             yield return project;
         }
     }
-    
+
     private ProjectInfo ParseProject(XmlNode tableRow, XmlNamespaceManager namespaceManager)
     {
         var title = ParseTitle();
-        
+
         var description = ParseDescription();
 
         var projectDetailsColumn = tableRow.ChildNodes[2]!;
-        
+
         var roles = ParseProjectRoles(projectDetailsColumn);
 
         var (startDate, endDate) = ParsePeriod(projectDetailsColumn);
@@ -198,11 +203,11 @@ public class DocxCvParser : ICvParser
             Responsibilities = responsibilities,
             Environment = usedTechnologies,
         };
-            
+
         string ParseTitle()
         {
             const int projectTitleColumnNodeIndex = 1;
-            
+
             var projectTitleColumn = tableRow.ChildNodes[projectTitleColumnNodeIndex]!;
 
             const int projectTitleParagraphNodeIndex = 1;
@@ -211,14 +216,14 @@ public class DocxCvParser : ICvParser
             var titleValue = ReadParagraphText(titleParagraphNode);
 
             _logger?.LogInformation("Project title: {title}", titleValue);
-            
+
             return titleValue;
         }
-        
+
         string ParseDescription()
         {
             const int projectDescriptionColumnNodeIndex = 1;
-            
+
             var projectTitleColumn = tableRow.ChildNodes[projectDescriptionColumnNodeIndex]!;
 
             const int projectDescriptionParagraphNodeIndex = 2;
@@ -227,11 +232,11 @@ public class DocxCvParser : ICvParser
             var descriptionValue = ReadParagraphText(descriptionParagraphNode);
 
             _logger?.LogInformation("Project description: {description}", descriptionValue);
-            
+
             return descriptionValue;
         }
-        
-        string ParseProjectRoles(XmlNode detailsColumn) => 
+
+        string ParseProjectRoles(XmlNode detailsColumn) =>
             ParseSectionValue(detailsColumn, "Project roles");
 
         (DateTime startDate, DateTime endDate) ParsePeriod(XmlNode detailsColumn)
@@ -241,7 +246,7 @@ public class DocxCvParser : ICvParser
             var periodParts = period.Split('–', '-',
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-            if (!DateTime.TryParse(periodParts[0], out var startDate) || 
+            if (!DateTime.TryParse(periodParts[0], out var startDate) ||
                 !DateTime.TryParse(periodParts[1], out var endDate))
             {
                 throw new CvParseException($"Invalid period definition: {period}");
@@ -249,10 +254,10 @@ public class DocxCvParser : ICvParser
 
             return (startDate, endDate);
         }
-        
+
         IEnumerable<string> ParseResponsibilities(XmlNode detailsColumn)
         {
-            var listStartNode = FindSectionValues(detailsColumn, 
+            var listStartNode = FindSectionValues(detailsColumn,
                 "Responsibilities & achievements", "Responsibilities");
 
             return ParseList(listStartNode, namespaceManager)
@@ -265,7 +270,7 @@ public class DocxCvParser : ICvParser
 
             return ReadParagraphText(sectionParagraph);
         }
-        
+
         IEnumerable<string> ParseEnvironment(XmlNode detailsColumn)
         {
             var environmentTableNode = FindSectionValues(detailsColumn, "Environment");
@@ -274,31 +279,31 @@ public class DocxCvParser : ICvParser
         }
     }
 
-    private static XmlNode FindSectionValues(XmlNode location, params string[] sectionNames)
+    private static XmlNode? FindSectionValues(XmlNode location, params string[] sectionNames)
     {
         foreach (var name in sectionNames)
         {
             var labelNode = FindNode(location, name);
-            
+
             if (labelNode is not null)
             {
                 return labelNode.NextSibling ?? throw new CvParseException($"Missing '{name}' values");
             }
         }
-        
-        throw new CvParseException($"Missing label with one of the following names: {sectionNames.First()}, ...");
+
+        return null;
     }
 
     private IEnumerable<string> ParseList(XmlNode listStartNode, XmlNamespaceManager namespaceManager)
     {
         var currentParagraphNode = listStartNode;
-        
+
         while (!IsSectionHeader(GetFirstParagraphRow(currentParagraphNode), namespaceManager))
         {
             var responsibility = ReadParagraphText(currentParagraphNode);
 
             yield return responsibility;
-                
+
             currentParagraphNode = currentParagraphNode.NextSibling!;
         }
 
@@ -313,7 +318,7 @@ public class DocxCvParser : ICvParser
         var hardSkillsSection = GetHardSkillsSection();
 
         _logger?.LogInformation("Start reading hard skills section");
-        
+
         var title = ParseTitle();
 
         var description = ParseDescription();
@@ -341,12 +346,12 @@ public class DocxCvParser : ICvParser
             CloudTechnologies = cloudTechnologies,
             Other = other
         };
-        
+
         XmlNode GetHardSkillsSection()
         {
             const int personSkillsTableNodeIndex = 2;
             var skillsTable = body.ChildNodes[personSkillsTableNodeIndex]!;
-        
+
             const int personSkillsTableContentNodeIndex = 2;
             var skillsTableContent = skillsTable.ChildNodes[personSkillsTableContentNodeIndex]!;
 
@@ -354,8 +359,8 @@ public class DocxCvParser : ICvParser
             var personSkillsTableContentValues = skillsTableContent.ChildNodes[personSkillsTableContentValuesNodeIndex];
 
             return personSkillsTableContentValues ?? throw new CvParseException("Missing hard skills column");
-        };
-        
+        }
+
         string ParseTitle()
         {
             const int titleNodeIndex = 1;
@@ -366,78 +371,79 @@ public class DocxCvParser : ICvParser
 
             return value;
         }
-        
+
         string ParseDescription()
         {
             const int descriptionNodeIndex = 2;
 
             var value = ParseTableParagraph(hardSkillsSection, descriptionNodeIndex);
-            
+
             _logger?.LogInformation("Description: {title}", value);
 
             return value;
         }
-        
+
         IEnumerable<string> ParseProgrammingLanguages()
         {
-            var programmingLanguagesNode = FindSectionValues(hardSkillsSection, 
+            var programmingLanguagesNode = FindSectionValues(hardSkillsSection,
                 "Programming languages");
 
             return GetRowEnumerationValues(programmingLanguagesNode);
         }
-        
+
         IEnumerable<string> ParseProgrammingTechnologies()
         {
-            var programmingTechnologiesTable = FindSectionValues(hardSkillsSection, 
-                "Programming technologies");
+            var programmingTechnologiesTable = FindSectionValues(hardSkillsSection,
+                "Programming technologies")!;
 
             return GetTableContent(programmingTechnologiesTable, namespaceManager);
         }
-        
+
         IEnumerable<string> ParseFrontendTechnologies()
         {
-            var frontendNode = FindSectionValues(hardSkillsSection, 
-                "Frontend technologies", "Frontend");
+            var frontendNode = FindSectionValues(hardSkillsSection,
+                "Frontend technologies", "Frontend")!;
 
             return GetRowEnumerationValues(frontendNode);
         }
-        
+
         IEnumerable<string> ParseDatabases()
         {
-            var databasesNode = FindSectionValues(hardSkillsSection, 
-                "Database management systems", "Databases");
+            var databasesNode = FindSectionValues(hardSkillsSection,
+                "Database management systems", "Databases")!;
 
             return GetRowEnumerationValues(databasesNode);
         }
-        
-        IEnumerable<string> ParseCloudTechnologies()
+
+        IEnumerable<string>? ParseCloudTechnologies()
         {
-            var cloudTechnologiesTable = FindSectionValues(hardSkillsSection, 
+            var cloudTechnologiesTable = FindSectionValues(hardSkillsSection,
                 "Cloud technologies", "Cloud");
 
-            return GetTableContent(cloudTechnologiesTable, namespaceManager);
+            return cloudTechnologiesTable is null ? null : GetTableContent(cloudTechnologiesTable, namespaceManager);
         }
-        
-        IEnumerable<string> ParseOther()
+
+        IEnumerable<string>? ParseOther()
         {
             var otherTechnologiesNode = FindSectionValues(hardSkillsSection, "Other");
-            
-            return GetRowEnumerationValues(otherTechnologiesNode);
+
+            return otherTechnologiesNode is null ? null : GetRowEnumerationValues(otherTechnologiesNode);
         }
     }
 
     private static IEnumerable<string> GetRowEnumerationValues(XmlNode node)
     {
-        return (node?.InnerText ?? "").Split(',', 
+        return (node?.InnerText ?? "").Split(',',
             StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
     }
-    
-    private IEnumerable<string> GetTableContent(XmlNode programmingTechnologiesTable, XmlNamespaceManager namespaceManager)
+
+    private IEnumerable<string> GetTableContent(XmlNode programmingTechnologiesTable,
+        XmlNamespaceManager namespaceManager)
     {
         var tableContent = GetTableContentNode(programmingTechnologiesTable);
-        
+
         var columns = tableContent.SelectNodes("w:tc", namespaceManager)!;
-        
+
         _logger?.LogInformation("Cols in table count: {count}", columns.Count);
 
         var columnIndex = 0;
@@ -459,7 +465,7 @@ public class DocxCvParser : ICvParser
     private static XmlNode GetTableContentNode(XmlNode table)
     {
         const int tableContentNodeIndex = 2;
-        
+
         return table.ChildNodes[tableContentNodeIndex]!;
     }
 
@@ -468,14 +474,14 @@ public class DocxCvParser : ICvParser
         var softSkillsSections = GetSoftSkillsContentTableNodes(body, xmlNamespaceManager);
 
         var softSkills = new SoftSkills();
-        
+
         _logger?.LogInformation("Start reading soft skills section");
-        
+
         Action<SoftSkills, string>? currentSetter = null;
-        foreach(var currentSoftSkillNode in softSkillsSections!)
+        foreach (var currentSoftSkillNode in softSkillsSections!)
         {
             var nodeValue = ReadParagraphText(currentSoftSkillNode);
-            
+
             if (IsSectionHeader(currentSoftSkillNode, xmlNamespaceManager))
             {
                 var setterIndex = Array.FindIndex(SoftSkillsSetters,
@@ -499,17 +505,19 @@ public class DocxCvParser : ICvParser
         }
 
         return softSkills;
-        
-        static IEnumerable<XmlNode>? GetSoftSkillsContentTableNodes(XmlNode body, XmlNamespaceManager xmlNamespaceManager)
+
+        static IEnumerable<XmlNode>? GetSoftSkillsContentTableNodes(XmlNode body,
+            XmlNamespaceManager xmlNamespaceManager)
         {
             const int personSkillsTableNodeIndex = 2;
             var skillsTable = body.ChildNodes[personSkillsTableNodeIndex]!;
-        
+
             var skillsTableContent = GetTableContentNode(skillsTable);
 
             const int personSkillsTableContentValuesNodeIndex = 1;
-            var personSkillsTableContentValues = skillsTableContent.ChildNodes[personSkillsTableContentValuesNodeIndex]!;
-            
+            var personSkillsTableContentValues =
+                skillsTableContent.ChildNodes[personSkillsTableContentValuesNodeIndex]!;
+
             foreach (XmlNode paragraph in personSkillsTableContentValues.SelectNodes("w:p", xmlNamespaceManager)!)
             {
                 foreach (XmlNode paragraphNode in paragraph.SelectNodes("w:r", xmlNamespaceManager)!)
@@ -519,7 +527,7 @@ public class DocxCvParser : ICvParser
             }
         }
     }
-    
+
     private static bool IsSectionHeader(XmlNode paragraphRowNode, XmlNamespaceManager xmlNamespaceManager)
     {
         var boldTextStyleNode = paragraphRowNode.FirstChild?.SelectNodes("w:b", xmlNamespaceManager)?[0] ?? null;
@@ -540,7 +548,7 @@ public class DocxCvParser : ICvParser
         var paragraph = body.ChildNodes[personPositionNodeIndex];
 
         var position = ReadParagraphText(paragraph);
-        
+
         _logger?.LogInformation("Person position: {position}", position);
 
         return position ?? string.Empty;
@@ -551,7 +559,7 @@ public class DocxCvParser : ICvParser
         var paragraph = body.FirstChild;
 
         var credentials = ReadParagraphText(paragraph);
-        
+
         _logger?.LogInformation("Person: {credentials}", credentials);
 
         return credentials;
@@ -563,7 +571,7 @@ public class DocxCvParser : ICvParser
         xmlDoc.Load(filePath);
 
         _logger?.LogInformation("Cv file '{file}' was opened", filePath);
-        
+
         return xmlDoc;
     }
 
@@ -586,10 +594,10 @@ public class DocxCvParser : ICvParser
             }
 
             XmlNode? result = null;
-            
+
             foreach (XmlNode childNode in xmlNode.ChildNodes)
             {
-                if (childNode.InnerText.Contains(name, StringComparison.OrdinalIgnoreCase)) 
+                if (childNode.InnerText.Contains(name, StringComparison.OrdinalIgnoreCase))
                 {
                     return childNode;
                 }
@@ -599,8 +607,8 @@ public class DocxCvParser : ICvParser
 
             return result;
         }
-    } 
-    
+    }
+
     private static string ParseTableParagraph(XmlNode table, int index)
     {
         var node = table.ChildNodes[index];

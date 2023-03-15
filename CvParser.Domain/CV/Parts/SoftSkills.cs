@@ -1,7 +1,7 @@
-﻿using CvParser.Models.CV.Parts.Certificate;
-using CvParser.Models.CV.Parts.Language;
+﻿using CvParser.Domain.CV.Parts.Certificate;
+using CvParser.Domain.CV.Parts.Language;
 
-namespace CvParser.Models.CV.Parts;
+namespace CvParser.Domain.CV.Parts;
 
 public class SoftSkills
 {
@@ -9,7 +9,7 @@ public class SoftSkills
 
     public ICollection<LanguageInfo>? Languages { get; set; }
 
-    public ICollection<CerfiticateInfo>? Certifications { get; set; }
+    public ICollection<CertificateInfo>? Certifications { get; set; }
 
     public ICollection<string>? Domains { get; set; }
 }

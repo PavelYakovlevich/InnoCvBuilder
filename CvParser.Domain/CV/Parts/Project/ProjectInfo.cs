@@ -1,4 +1,4 @@
-﻿namespace CvParser.Models.CV.Parts.Project;
+﻿namespace CvParser.Domain.CV.Parts.Project;
 
 public class ProjectInfo
 {

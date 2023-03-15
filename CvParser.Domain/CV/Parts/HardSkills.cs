@@ -1,4 +1,4 @@
-﻿namespace CvParser.Models.CV.Parts;
+﻿namespace CvParser.Domain.CV.Parts;
 
 public class HardSkills
 {
@@ -14,7 +14,7 @@ public class HardSkills
     
     public IEnumerable<string> Databases { get; set; }
 
-    public IEnumerable<string> CloudTechnologies { get; set; }
+    public IEnumerable<string>? CloudTechnologies { get; set; }
 
-    public IEnumerable<string> Other { get; set; }
+    public IEnumerable<string>? Other { get; set; }
 }

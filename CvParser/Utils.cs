@@ -1,4 +1,4 @@
-﻿using CvParser.Models.CV.Parts.Language;
+﻿using CvParser.Domain.CV.Parts.Language;
 
 namespace CvParser;
 

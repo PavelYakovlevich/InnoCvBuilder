@@ -1,4 +1,4 @@
-﻿namespace CvParser.Models.Exceptions;
+﻿namespace CvParser.Domain.Exceptions;
 
 public class CvParseException : Exception
 {

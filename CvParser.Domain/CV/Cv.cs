@@ -1,7 +1,7 @@
-﻿using CvParser.Models.CV.Parts;
-using CvParser.Models.CV.Parts.Project;
+﻿using CvParser.Domain.CV.Parts;
+using CvParser.Domain.CV.Parts.Project;
 
-namespace CvParser.Models.CV;
+namespace CvParser.Domain.CV;
 
 public class Cv
 {

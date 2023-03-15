@@ -1,4 +1,4 @@
-﻿namespace CvParser.Models.CV.Parts.Language;
+﻿namespace CvParser.Domain.CV.Parts.Language;
 
 public class LanguageInfo
 {
