@@ -2,5 +2,5 @@
 
 public class Matrix
 {
-    public IDictionary<string, IReadOnlyCollection<SkillUsageInfo>> Skills { get; }
+    public IDictionary<string, SkillUsageInfo> Skills { get; init; }
 }

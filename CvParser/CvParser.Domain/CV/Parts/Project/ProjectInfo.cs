@@ -14,5 +14,5 @@ public class ProjectInfo
 
     public IEnumerable<string>? Responsibilities { get; set; }
 
-    public IEnumerable<string>? Environment { get; set; }
+    public IEnumerable<string> Environment { get; set; }
 }

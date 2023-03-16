@@ -2,9 +2,9 @@
 
 public class SkillUsageInfo
 {
-    public string Name { get; }
+    public string Name { get; set;}
 
-    public int ExperienceInMonth { get; }
+    public float Experience { get; set;}
 
-    public int LastUsageYear { get; }
+    public int LastUsageYear { get; set; }
 }

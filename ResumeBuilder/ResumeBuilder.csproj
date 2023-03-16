@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\CvParser.Docx\CvParser.Docx.csproj" />
+      <ProjectReference Include="..\CvMatrix\CvMatrix.Core\CvMatrix.Core.csproj" />
       <ProjectReference Include="..\CvParser\CvParser.Docx\CvParser.Docx.csproj" />
     </ItemGroup>
 
